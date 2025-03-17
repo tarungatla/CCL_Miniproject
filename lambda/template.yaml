@@ -1,0 +1,90 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Low Stock Notification Lambda Function'
+
+Parameters:
+  DynamoDBTableName:
+    Type: String
+    Description: Name of the DynamoDB table to monitor
+    Default: Inventory
+  
+  LowStockThreshold:
+    Type: Number
+    Description: Threshold for low stock alerts
+    Default: 10
+
+Resources:
+  LowStockTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: inventory-low-stock-alerts
+      DisplayName: Inventory Low Stock Alerts
+
+  LowStockNotificationFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: inventory-low-stock-notification
+      Handler: low_stock_notification.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: !Sub |
+          ${LambdaFunction}
+      Runtime: python3.9
+      Timeout: 30
+      Environment:
+        Variables:
+          DYNAMODB_TABLE_NAME: !Ref DynamoDBTableName
+          SNS_TOPIC_ARN: !Ref LowStockTopic
+          LOW_STOCK_THRESHOLD: !Ref LowStockThreshold
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: LowStockNotificationPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:Scan
+                Resource: !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${DynamoDBTableName}
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: !Ref LowStockTopic
+
+  LowStockEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Trigger low stock notification check every hour
+      ScheduleExpression: rate(1 hour)
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt LowStockNotificationFunction.Arn
+          Id: LowStockCheck
+
+  LambdaEventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref LowStockNotificationFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt LowStockEventRule.Arn
+
+Outputs:
+  SNSTopicArn:
+    Description: ARN of the SNS topic for low stock notifications
+    Value: !Ref LowStockTopic
+  
+  LambdaFunctionArn:
+    Description: ARN of the Lambda function
+    Value: !GetAtt LowStockNotificationFunction.Arn 
