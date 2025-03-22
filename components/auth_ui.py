@@ -49,41 +49,63 @@ def show_auth_ui():
     with tab1:
         st.subheader("Login")
         with st.form("login_form"):
-            username = st.text_input("Username")
+            email = st.text_input("Email")
             password = st.text_input("Password", type="password")
             submit = st.form_submit_button("Login")
             
             if submit:
-                if username and password:
-                    success, result = auth.sign_in(username, password)
+                if email and password:
+                    success, result = auth.sign_in(email, password)
                     if success:
                         st.session_state.authenticated = True
                         st.session_state.user_token = result['AccessToken']
-                        st.success("✅ Login successful!")
+                        st.session_state.user_email = email  # Store email in session
+                        st.success("Login successful!")
                         st.rerun()
                     else:
-                        st.error(f"❌ Login failed: {result}")
+                        st.error(f"Login failed: {result}")
                 else:
-                    st.error("⚠️ Please fill in all fields.")
+                    st.error("Please fill in all fields")
     
     with tab2:
-        st.subheader("Sign Up")
-        with st.form("signup_form"):
-            new_username = st.text_input("Username")
-            email = st.text_input("Email")
-            new_password = st.text_input("Password", type="password")
-            confirm_password = st.text_input("Confirm Password", type="password")
-            submit = st.form_submit_button("Sign Up")
-            
-            if submit:
-                if new_username and email and new_password and confirm_password:
-                    if new_password != confirm_password:
-                        st.error("⚠️ Passwords do not match")
-                    else:
-                        success, message = auth.sign_up(new_username, new_password, email)
-                        if success:
-                            st.success("✅ Registration successful! Please check your email for verification.")
+        # Add verification section toggle
+        signup_mode = st.radio("", ["Sign Up", "Verify Account"], horizontal=True)
+        
+        if signup_mode == "Sign Up":
+            st.subheader("Sign Up")
+            with st.form("signup_form"):
+                new_email = st.text_input("Email")
+                new_password = st.text_input("Password", type="password")
+                confirm_password = st.text_input("Confirm Password", type="password")
+                submit = st.form_submit_button("Sign Up")
+                
+                if submit:
+                    if new_email and new_password and confirm_password:
+                        if new_password != confirm_password:
+                            st.error("Passwords do not match")
                         else:
-                            st.error(f"❌ Registration failed: {message}")
-                else:
-                    st.error("⚠️ Please fill in all fields.") 
+                            success, message = auth.sign_up(new_email, new_password, new_email)
+                            if success:
+                                st.success("Registration successful! Please check your email for verification code.")
+                                st.session_state.verification_email = new_email  # Store email for verification
+                            else:
+                                st.error(f"Registration failed: {message}")
+                    else:
+                        st.error("Please fill in all fields")
+        
+        else:  # Verify Account section
+            st.subheader("Verify Account")
+            with st.form("verify_form"):
+                email = st.text_input("Email")
+                verification_code = st.text_input("Verification Code")
+                submit = st.form_submit_button("Verify Account")
+                
+                if submit:
+                    if email and verification_code:
+                        success, message = auth.confirm_sign_up(email, verification_code)
+                        if success:
+                            st.success("Email verified successfully! You can now login.")
+                        else:
+                            st.error(f"Verification failed: {message}")
+                    else:
+                        st.error("Please fill in all fields") 

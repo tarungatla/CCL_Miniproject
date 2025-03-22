@@ -35,50 +35,39 @@ class CognitoAuth:
             logger.error(f"Failed to initialize Cognito client: {str(e)}")
             raise
 
-    def sign_up(self, username, password, email):
-        """Registers a new user in the Cognito User Pool."""
+    def sign_up(self, email, password, email_attr):
+        """Registers a new user in the Cognito User Pool using email as username."""
         try:
             response = self.client.sign_up(
                 ClientId=self.client_id,
-                Username=username,
+                Username=email,  # Use email as username
                 Password=password,
-                UserAttributes=[{'Name': 'email', 'Value': email}]
+                UserAttributes=[
+                    {'Name': 'email', 'Value': email_attr}
+                ]
             )
-            logger.info(f"User {username} registered successfully.")
+            logger.info(f"User {email} registered successfully.")
             return True, "User registration successful"
-
         except self.client.exceptions.UsernameExistsException:
-            return False, "Username already exists."
-        except self.client.exceptions.InvalidParameterException as e:
-            return False, f"Invalid parameters: {str(e)}"
-        except self.client.exceptions.ResourceNotFoundException as e:
-            return False, f"Configuration error: {str(e)}. Please verify your Cognito settings."
-        except ClientError as e:
-            return False, f"AWS Error: {str(e)}"
+            return False, "Email already registered"
         except Exception as e:
-            return False, f"Unexpected error: {str(e)}"
+            return False, f"Registration error: {str(e)}"
 
-    def sign_in(self, username, password):
-        """Authenticates a user and returns the authentication result."""
+    def sign_in(self, email, password):
+        """Signs in a user using their email."""
         try:
             response = self.client.initiate_auth(
                 ClientId=self.client_id,
                 AuthFlow='USER_PASSWORD_AUTH',
-                AuthParameters={'USERNAME': username, 'PASSWORD': password}
+                AuthParameters={
+                    'USERNAME': email,  # Use email as username
+                    'PASSWORD': password
+                }
             )
-            logger.info(f"User {username} logged in successfully.")
+            logger.info(f"User {email} logged in successfully.")
             return True, response['AuthenticationResult']
-
-        except self.client.exceptions.NotAuthorizedException:
-            return False, "Incorrect username or password."
-        except self.client.exceptions.UserNotFoundException:
-            return False, "User does not exist."
-        except self.client.exceptions.ResourceNotFoundException:
-            return False, "Cognito client configuration is invalid."
-        except ClientError as e:
-            return False, f"AWS Error: {str(e)}"
         except Exception as e:
-            return False, f"Unexpected error: {str(e)}"
+            return False, str(e)
 
     def verify_token(self, token):
         """Validates an access token and retrieves user information."""
@@ -108,3 +97,33 @@ class CognitoAuth:
             return False, f"AWS Error: {str(e)}"
         except Exception as e:
             return False, f"Unexpected error: {str(e)}"
+
+    def confirm_sign_up(self, email, confirmation_code):
+        """Confirms user registration with verification code."""
+        try:
+            response = self.client.confirm_sign_up(
+                ClientId=self.client_id,
+                Username=email,
+                ConfirmationCode=confirmation_code
+            )
+            logger.info(f"User {email} verified successfully.")
+            return True, "Email verified successfully"
+        except self.client.exceptions.CodeMismatchException:
+            return False, "Invalid verification code"
+        except self.client.exceptions.ExpiredCodeException:
+            return False, "Verification code has expired"
+        except self.client.exceptions.UserNotFoundException:
+            return False, "User not found"
+        except Exception as e:
+            return False, f"Verification error: {str(e)}"
+
+    def resend_verification_code(self, email):
+        """Resends verification code to user's email."""
+        try:
+            response = self.client.resend_confirmation_code(
+                ClientId=self.client_id,
+                Username=email
+            )
+            return True, "Verification code resent successfully"
+        except Exception as e:
+            return False, f"Failed to resend code: {str(e)}"
