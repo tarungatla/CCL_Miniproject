@@ -42,7 +42,7 @@ def show_inventory_form():
                         file_extension = image.name.split('.')[-1]
                         file_name = f"{uuid.uuid4()}.{file_extension}"
                         image_url = s3.upload_file(image, file_name)
-                    
+                    print(image_url)
                     item_id = db.add_item(name, category, quantity, price, image_url)
                     st.success(f"Item '{name}' added successfully!")
                     st.rerun()

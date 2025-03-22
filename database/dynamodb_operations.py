@@ -8,18 +8,24 @@ class DynamoDBOperations:
         self.dynamodb = boto3.resource('dynamodb', **AWS_CONFIG)
         self.table = self.dynamodb.Table(DYNAMODB_CONFIG['table_name'])
 
-    def add_item(self, name, category, quantity, price, image_url):
+    def add_item(self, name, category, quantity, price, image_url=""):
+        # This method should store the image_url in the item record
+        item_id = str(uuid.uuid4())
+        timestamp = datetime.now().isoformat()
+        
         item = {
-            'ItemID': str(uuid.uuid4()),
+            'ItemID': item_id,
             'Name': name,
             'Category': category,
-            'Quantity': quantity,
+            'Quantity': int(quantity),
             'Price': price,
-            'ImageURL': image_url,
-            'Timestamp': datetime.utcnow().isoformat()
+            'ImageURL': str(image_url),  # Store the S3 URL
+            'Timestamp': timestamp
         }
+        
+        # Add to DynamoDB table
         self.table.put_item(Item=item)
-        return item['ItemID']
+        return item_id
 
     def get_items(self, category=None):
         if category:
