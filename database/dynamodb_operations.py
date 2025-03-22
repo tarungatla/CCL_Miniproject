@@ -2,6 +2,7 @@ import boto3
 from datetime import datetime
 import uuid
 from config.aws_config import AWS_CONFIG, DYNAMODB_CONFIG
+from decimal import Decimal
 
 class DynamoDBOperations:
     def __init__(self):
@@ -61,21 +62,37 @@ class DynamoDBOperations:
         return response.get('Items', [])
 
     def update_item(self, item_id, updates):
+        """Update an existing item in DynamoDB"""
         update_expression = "SET "
-        expression_values = {}
+        expression_attribute_values = {}
+        expression_attribute_names = {}
         
         for key, value in updates.items():
+            # Add to update expression
             update_expression += f"#{key} = :{key}, "
-            expression_values[f":{key}"] = value
+            # Add to expression attribute names
+            expression_attribute_names[f"#{key}"] = key
+            # Add to expression attribute values
+            # Convert numbers to Decimal for DynamoDB
+            if isinstance(value, (int, float)):
+                value = Decimal(str(value))
+            expression_attribute_values[f":{key}"] = value
         
-        update_expression = update_expression[:-2]
+        # Add timestamp to update
+        update_expression += "#Timestamp = :timestamp"
+        expression_attribute_names["#Timestamp"] = "Timestamp"
+        expression_attribute_values[":timestamp"] = datetime.now().isoformat()
         
-        self.table.update_item(
-            Key={'ItemID': item_id},
-            UpdateExpression=update_expression,
-            ExpressionAttributeValues=expression_values,
-            ExpressionAttributeNames={f"#{k}": k for k in updates.keys()}
-        )
+        try:
+            self.table.update_item(
+                Key={'ItemID': item_id},
+                UpdateExpression=update_expression,
+                ExpressionAttributeNames=expression_attribute_names,
+                ExpressionAttributeValues=expression_attribute_values
+            )
+            return True
+        except Exception as e:
+            raise Exception(f"Failed to update item: {str(e)}")
 
     def delete_item(self, item_id):
         self.table.delete_item(

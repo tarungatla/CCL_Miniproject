@@ -2,3 +2,4 @@
 .venv
 try.py
 __pycache__/
+ccl-keypair.pem
