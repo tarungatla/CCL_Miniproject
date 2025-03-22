@@ -18,11 +18,21 @@ def main():
         st.session_state.authenticated = False
     if 'user_token' not in st.session_state:
         st.session_state.user_token = None
+    if 'user_email' not in st.session_state:
+        st.session_state.user_email = None
 
     # Show authentication UI if not authenticated
     if not st.session_state.authenticated:
         show_auth_ui()
         return
+
+    # Show user info in sidebar
+    st.sidebar.write(f"Logged in as: {st.session_state.user_email}")
+    if st.sidebar.button("Logout"):
+        st.session_state.authenticated = False
+        st.session_state.user_token = None
+        st.session_state.user_email = None
+        st.rerun()
 
     # Main application
     st.title("📦 Inventory Management System")

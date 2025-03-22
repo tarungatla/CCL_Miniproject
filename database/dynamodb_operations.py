@@ -28,14 +28,36 @@ class DynamoDBOperations:
         self.table.put_item(Item=item)
         return item_id
 
-    def get_items(self, category=None):
-        if category:
+    def get_items(self, category=None, user_email=None):
+        """Get items with optional filtering by category and user email"""
+        filter_expression = None
+        expression_values = {}
+        expression_names = {}
+
+        # Build filter expression
+        if category and user_email:
+            filter_expression = '#category = :cat AND #email = :email'
+            expression_values = {':cat': category, ':email': user_email}
+            expression_names = {'#category': 'Category', '#email': 'UserEmail'}
+        elif category:
+            filter_expression = '#category = :cat'
+            expression_values = {':cat': category}
+            expression_names = {'#category': 'Category'}
+        elif user_email:
+            filter_expression = '#email = :email'
+            expression_values = {':email': user_email}
+            expression_names = {'#email': 'UserEmail'}
+
+        # Execute scan with appropriate filters
+        if filter_expression:
             response = self.table.scan(
-                FilterExpression='Category = :cat',
-                ExpressionAttributeValues={':cat': category}
+                FilterExpression=filter_expression,
+                ExpressionAttributeValues=expression_values,
+                ExpressionAttributeNames=expression_names
             )
         else:
             response = self.table.scan()
+        
         return response.get('Items', [])
 
     def update_item(self, item_id, updates):

@@ -21,16 +21,22 @@ def convert_to_ist(utc_timestamp):
 
 def show_inventory_view():
     db = DynamoDBOperations()
-    items = db.get_items()
+    
+    # Get only the current user's items
+    items = db.get_items(user_email=st.session_state.user_email)
     
     # Convert items to DataFrame for easier manipulation
     df = pd.DataFrame(items)
     
+    if df.empty:
+        st.info("You haven't added any items yet. Go to 'Add/Edit Inventory' to add items.")
+        return
+        
     # Ensure ImageURL is treated as a string
     if 'ImageURL' in df.columns:
         df['ImageURL'] = df['ImageURL'].astype(str)
     
-    st.subheader("Inventory Overview")
+    st.subheader("Your Inventory Overview")
     
     # Filters
     selected_category = []

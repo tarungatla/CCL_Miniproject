@@ -10,8 +10,8 @@ def show_inventory_form():
     
     st.subheader("Add/Edit Inventory Item")
     
-    # Get existing categories for dropdown
-    items = db.get_items()
+    # Get existing categories for current user's items
+    items = db.get_items(user_email=st.session_state.user_email)
     existing_categories = sorted(list(set(item['Category'] for item in items)))
     
     with st.form("inventory_form"):
@@ -59,9 +59,9 @@ def show_inventory_form():
             else:
                 st.error("Please fill in all required fields")
     
-    # Edit/Delete existing items
+    # Edit/Delete existing items (only show user's items)
     st.subheader("Edit Existing Items")
-    for item in items:
+    for item in items:  # This now only contains the current user's items
         with st.expander(f"{item['Name']} ({item['Category']})"):
             col1, col2, col3 = st.columns([2, 1, 1])
             
